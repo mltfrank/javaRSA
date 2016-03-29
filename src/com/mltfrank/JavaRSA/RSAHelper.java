@@ -1,5 +1,7 @@
 package com.mltfrank.JavaRSA;
 
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.pkcs.RSAPrivateKeyStructure;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import sun.misc.BASE64Decoder;
 
@@ -13,6 +15,7 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.RSAPrivateKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 
@@ -27,13 +30,28 @@ import java.util.ArrayList;
 public enum RSAHelper {
     INSTANCE;
 
-    private static final int MAX_ENCRTPT_BYTE = 128; // count of byte to be encrypted, must less than (MAX_DECRTPT_BYTE-11)
-    private static final int MAX_DECRTPT_BYTE = 256; // count of byte to be decrypted
-    private static final int KEY_LENGTH = MAX_DECRTPT_BYTE * 8; // length of key(count in bit), must be the same to MAX_DECRTPT_BYTE.
+    private int MAX_ENCRTPT_BYTE = 128; // count of byte to be encrypted, must less than (MAX_DECRTPT_BYTE-11)
+    private int MAX_DECRTPT_BYTE = 256; // count of byte to be decrypted
 
     private RSAPrivateKey privateKey;
-
     private RSAPublicKey publicKey;
+
+
+    public int getMAX_ENCRTPT_BYTE() {
+        return MAX_ENCRTPT_BYTE;
+    }
+
+    public int getMAX_DECRTPT_BYTE() {
+        return MAX_DECRTPT_BYTE;
+    }
+
+    public void setMAX_ENCRTPT_BYTE(int MAX_ENCRTPT_BYTE) {
+        this.MAX_ENCRTPT_BYTE = MAX_ENCRTPT_BYTE;
+    }
+
+    public void setMAX_DECRTPT_BYTE(int MAX_DECRTPT_BYTE) {
+        this.MAX_DECRTPT_BYTE = MAX_DECRTPT_BYTE;
+    }
 
     public RSAPrivateKey getPrivateKey(){
         return this.privateKey;
@@ -56,15 +74,16 @@ public enum RSAHelper {
      * After call this method, the private key and public key will be stored in the
      * attributes 'privateKey' and 'publicKey'.</br>
      * Use get method to get keys if needed.
+     * @param keyLength key length (in bit)
      */
-    public void genKeyPair(){
+    public void genKeyPair(int keyLength){
         KeyPairGenerator keyPairGen= null;
         try {
             keyPairGen= KeyPairGenerator.getInstance("RSA");
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
-        keyPairGen.initialize(KEY_LENGTH, new SecureRandom());
+        keyPairGen.initialize(keyLength, new SecureRandom());
         KeyPair keyPair= keyPairGen.generateKeyPair();
         this.privateKey= (RSAPrivateKey) keyPair.getPrivate();
         this.publicKey= (RSAPublicKey) keyPair.getPublic();
@@ -163,18 +182,28 @@ public enum RSAHelper {
      * @throws Exception
      */
     public void loadPrivateKey(String privateKeyStr) throws Exception{
+        byte[] buffer;
+        KeyFactory keyFactory;
         try {
-            BASE64Decoder base64Decoder= new BASE64Decoder();
-            byte[] buffer= base64Decoder.decodeBuffer(privateKeyStr);
-            PKCS8EncodedKeySpec keySpec= new PKCS8EncodedKeySpec(buffer);
-            KeyFactory keyFactory= KeyFactory.getInstance("RSA");
-            this.privateKey= (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
-        } catch (NoSuchAlgorithmException e) {
-            throw new Exception("No such algorithm in key factory");
-        } catch (InvalidKeySpecException e) {
-            throw new Exception("Invalid key spec, only support PKCS8");
+            BASE64Decoder base64Decoder = new BASE64Decoder();
+            buffer = base64Decoder.decodeBuffer(privateKeyStr);
+            keyFactory = KeyFactory.getInstance("RSA");
         } catch (IOException e) {
             throw new Exception("Error when read private key from input string");
+        } catch (NoSuchAlgorithmException e) {
+            throw new Exception("No such algorithm in key factory");
+        }
+        try { // try to decode with PKCS8
+            PKCS8EncodedKeySpec keySpec= new PKCS8EncodedKeySpec(buffer);
+            this.privateKey= (RSAPrivateKey) keyFactory.generatePrivate(keySpec);
+        }catch (InvalidKeySpecException e) {
+            try{ // try to decode with PKCS1
+                RSAPrivateKeyStructure asn1PrivKey = new RSAPrivateKeyStructure((ASN1Sequence) ASN1Sequence.fromByteArray(buffer));
+                RSAPrivateKeySpec rsaPrivKeySpec = new RSAPrivateKeySpec(asn1PrivKey.getModulus(), asn1PrivKey.getPrivateExponent());
+                this.privateKey= (RSAPrivateKey) keyFactory.generatePrivate(rsaPrivKeySpec);
+            }catch (InvalidKeySpecException e2){
+                throw new Exception("Invalid key spec, only support PKCS1/PKCS8");
+            }
         }
     }
 

@@ -55,9 +55,25 @@ public class TestRSAHelper {
         }
     }
 
+    public void testKeyLoaderPKCS1(){
+        try{
+            RSAHelper test = RSAHelper.INSTANCE;
+            test.loadPublicKey(new FileInputStream(new File("rsa_public_key.pem")));
+            test.loadPrivateKey(new FileInputStream(new File("rsa_private_key.pem")));
+            test.loadPublicKey(new File("rsa_public_key.pem"));
+            test.loadPrivateKey(new File("rsa_private_key.pem"));
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args){
         TestRSAHelper test = new TestRSAHelper();
-        test.testKeyLoader();
+        //test.testKeyLoader();
+        //test.testEncryptLong();
+        //test.testDecryptLong();
+
+        test.testKeyLoaderPKCS1();
         test.testEncryptLong();
         test.testDecryptLong();
     }
