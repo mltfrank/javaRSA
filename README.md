@@ -30,6 +30,8 @@
   (-nocrypt指定不使用二次加密)
 
 2.在项目中导入bouncycastle包，再粘贴RSAHelper类代码，放入指定包内。使用枚举类使其限制为单例模式。
+
 3.通过从文件/流中读取或者set方法设置public/private key。（根据使用需要，加密加载public key，解密加载private key）
+
 4.如果要使用长文本的加密，需要先通过set方法修改MAX_ENCRTPT_BYTE和MAX_DECRTPT_BYTE的常量，否则可能会出现类似以下的提示。
         The encoded output stream must be represented in lines of no more than 117 characters each。
